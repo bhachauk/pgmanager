@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../fw/node.dart';
 import '../models/config_model.dart';
@@ -20,6 +21,7 @@ abstract class ConfigRepository {
   }
 }
 
+// Demo purpose
 class DefaultConfigRepository extends ConfigRepository {
   @override
   Future<bool> loadConfig() async {
@@ -28,19 +30,22 @@ class DefaultConfigRepository extends ConfigRepository {
         return true;
       }
       clusterConfig = ClusterConfig();
-      clusterConfig.cluster.pub.configs.addAll(getDefaultConfigs());
+      String contents = await rootBundle.loadString('assets/postgres.json');
+      clusterConfig.cluster.pub.configs.addAll(getDefaultConfigs(contents));
       Node sub1 = Node('Subscriber 1');
       clusterConfig.cluster.subs.add(sub1);
       for (var element in clusterConfig.cluster.subs) {
-        element.configs.addAll(getDefaultConfigs());
+        element.configs.addAll(getDefaultConfigs(contents));
       }
       loaded = true;
       return true;
   }
 
-  List<Config> getDefaultConfigs() => <Config>[
-    Config('max_wal_senders', '10'),
-    Config('max_replication_slots', '10'),
-  ];
+  List<Config> getDefaultConfigs(String contents) {
+    return Map<String, String>.from(jsonDecode(contents)).entries.map((element) {
+      return Config(element.key,element.value);
+    }).toList();
+
+  }
 
 }

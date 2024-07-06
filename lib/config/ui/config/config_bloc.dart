@@ -32,10 +32,7 @@ class ConfigBloc extends Bloc<ConfigEvent, ConfigState> {
       } else {
         emit(ConfigUpdateFailed(event, response));
       }
-      await Future.delayed(const Duration(seconds: 2));
-      emit(ConfigLoadedState(repository.clusterConfig));
     });
-
   }
 
 }

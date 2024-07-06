@@ -1,6 +1,7 @@
 import 'package:easy_sidemenu/easy_sidemenu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pg_manager/config/Responsive.dart';
 import 'package:pg_manager/config/fw/cluster.dart';
 import 'package:pg_manager/config/fw/node.dart';
 import 'package:pg_manager/config/fw/util.dart';
@@ -65,6 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getBody() {
+    _expanded = Responsive(context).isMobile() ? false : true;
     List items = [
       SideMenuItem(
         title: 'Configuration',
