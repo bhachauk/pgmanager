@@ -14,6 +14,15 @@ class UpdateConfigEvent extends ConfigEvent {
   final String name;
   final String value;
   const UpdateConfigEvent(this.id, this.name, this.value);
+
+  String toUIString() {
+    return """
+node\t: $id
+configuration\t: $name
+value\t: $value
+""";
+  }
+
   @override
   String toString() {
     return "node=$id, config=$name, value=$value";

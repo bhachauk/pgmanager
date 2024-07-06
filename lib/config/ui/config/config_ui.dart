@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'dart:html' as html;
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pg_manager/config/fw/util.dart';
 import 'package:pg_manager/config/models/config_model.dart';
 import 'package:pg_manager/config/ui/config/config_bloc.dart';
 import 'package:pg_manager/config/ui/config/node/NodeCard.dart';
@@ -23,6 +26,26 @@ class _ConfigPageState extends State<ConfigPage> {
     context.read<ConfigBloc>().add(LoadConfigEvent());
   }
 
+  Widget alertDialague(ConfigUpdateState state) {
+    String text = state.updateConfigEvent.toUIString();
+    if (state is ConfigUpdateFailed) {
+      text = "$text\n${state.response.errorConfigs.map((e) => e.toString()).join('\n')}";
+    }
+    text += "\n \n Reloading configuration...";
+    return AlertDialog(
+      title: Text(state is ConfigUpdatedSuccess ? 'Success': 'Failed'),
+      content: Text(text),
+      actions: <Widget>[
+        TextButton(
+          child: const Text('OK'),
+          onPressed: () {
+            context.read<ConfigBloc>().add(LoadConfigEvent());
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ConfigBloc, ConfigState>(builder: (context, state) {
@@ -40,21 +63,8 @@ class _ConfigPageState extends State<ConfigPage> {
               Text("Configuration not loaded from repository", style: TextStyle(color: Colors.red))
             ]);
       }
-      else if(state is ConfigUpdatedSuccess) {
-        return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Configuration ${state.updateConfigEvent.toString()} updated successfully",
-                  style: const TextStyle(color: Colors.green))
-            ]);
-      }
-      else if(state is ConfigUpdateFailed) {
-        return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Configuration ${state.updateConfigEvent.toString()} update failed due to, \n${state.response.errorConfigs.map((e) => e.toString()).join("\n")}",
-                  style: const TextStyle(color: Colors.red))
-            ]);
+      else if(state is ConfigUpdateState) {
+        return alertDialague(state);
       }
       else if (state is ConfigLoadedState) {
         return ConfigurationSelectionPage(config: state.config);
@@ -102,9 +112,21 @@ class _ConfigurationSelectionPageState extends State<ConfigurationSelectionPage>
     context.read<ConfigBloc>().add(UpdateConfigEvent(nodeId, config, value));
   }
 
+  void exportStringAsFile(String content, String fileName) {
+    final blob = html.Blob([content]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)  // Set the file name
+      ..click();  // Trigger the download
+    html.Url.revokeObjectUrl(url);
+  }
+
 
   Widget header() {
-    return Row(children: [
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
        DropdownButton<String>(
         hint: const Text('Select an Item'),
         value: _selectedItem,
@@ -118,7 +140,26 @@ class _ConfigurationSelectionPageState extends State<ConfigurationSelectionPage>
             value: value,
             child: Text(value),
           );
-        }).toList())
+        }).toList()),
+      Container(padding: const EdgeInsets.all(5),),
+      ElevatedButton(onPressed: () {
+        if (editable!=null) {
+          _onSubmit(editable!.id, editable!.conf, editable!.editText??"");
+        }},
+        style: ElevatedButton.styleFrom(backgroundColor: editable!= null ? Colors.green: Colors.grey,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero,),
+        ),
+        child: const Text('Update Configuration',style: TextStyle(color: Colors.white)),
+      ),
+          Container(padding: const EdgeInsets.all(5),),
+          ElevatedButton(onPressed: (){
+            exportStringAsFile(widget.config.cluster.getNode(_selectedItem!).confText(), '$_selectedItem.conf');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.black54,
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero,),
+            ),
+            child: const Text('Export as .conf',style: TextStyle(color: Colors.white)),
+      )
     ]);
   }
 
@@ -126,54 +167,39 @@ class _ConfigurationSelectionPageState extends State<ConfigurationSelectionPage>
     Node node = widget.config.cluster.getNode(_selectedItem!);
     List<Config> configs = node.configs;
     return  Expanded(
-    child: Column(
-    children: [
-    Expanded(
-    child: ListView.builder(
-    itemCount: configs.length,
-    itemBuilder: (context, index) {
-    String confName = configs[index].name;
-    ConfigTextEditController controller = controllers.where((element) => element.id == _selectedItem && element.conf == confName).first;
-    return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: TextFormField(
-      readOnly: controller.readOnly,
-      onChanged:(val) {
-        if (val != controller.valueText) {
-          controller.edit(val);
-          editable = controller;
-          controllers.asMap().forEach((_index, _controller) {
-            debugPrint(_controller.toString());
-            if(!_controller.equals(controller)) {
-              _controller.readOnly = true;
-            }});
-        } else {
-          for (var _element in controllers) { _element.reset();}
-        }
-        setState(() {
-
-        });
-      },
-    controller: controller,
-    decoration: InputDecoration(
-    labelText: confName,
-    border: OutlineInputBorder(),
-    ),
-    ),
+        child: Column(children: [
+          Expanded(child: ListView.builder(itemCount: configs.length,
+            itemBuilder: (context, index) {
+            String confName = configs[index].name;
+            ConfigTextEditController controller = controllers.where((element) => element.id == _selectedItem && element.conf == confName).first;
+            return Padding(padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: TextFormField(
+                readOnly: controller.readOnly,
+                onChanged:(val) {
+                  if (val != controller.valueText) {
+                    controller.edit(val);
+                    editable = controller;
+                    controllers.asMap().forEach((_index, _controller) {
+                      debugPrint(_controller.toString());
+                      if(!_controller.equals(controller)) {
+                        _controller.readOnly = true;
+                      }});
+                  } else {
+                    for (var _element in controllers) { _element.reset();}
+                    editable = null;
+                  }
+                  setState(() {});
+                  },
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: confName,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            );},
+          ),),
+        ],)
     );
-    },
-    ),
-    ),
-      ElevatedButton(
-        onPressed: () {
-          if (editable!=null) {
-            _onSubmit(editable!.id, editable!.conf, editable!.editText??"");
-          }
-          },
-        child: Text('Update Configuration'),
-      ),
-    ],
-    ));
   }
 
   Widget content() {

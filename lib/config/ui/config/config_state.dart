@@ -15,15 +15,18 @@ class ConfigLoadedState extends ConfigState {
   const ConfigLoadedState(this.config);
 }
 
-class ConfigUpdatedSuccess extends ConfigState {
+class ConfigUpdateState extends ConfigState {
   final UpdateConfigEvent updateConfigEvent;
-  const ConfigUpdatedSuccess(this.updateConfigEvent);
+  const ConfigUpdateState(this.updateConfigEvent);
+
+}
+class ConfigUpdatedSuccess extends ConfigUpdateState {
+  ConfigUpdatedSuccess(super.updateConfigEvent);
 }
 
-class ConfigUpdateFailed extends ConfigState {
-  final UpdateConfigEvent updateConfigEvent;
+class ConfigUpdateFailed extends ConfigUpdateState {
   final UpdateResponse response;
-  const ConfigUpdateFailed(this.updateConfigEvent, this.response);
+  const ConfigUpdateFailed(super.updateConfigEvent, this.response);
 }
 
 class ConfigLoadErrorState extends ConfigState {}

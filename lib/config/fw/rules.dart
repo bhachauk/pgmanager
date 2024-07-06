@@ -36,17 +36,18 @@ class CaveatRule extends Rule {
   // publisher value <= subscriber
   @override
   UpdateResponse validate(UpdateRequest request) {
-
     Node node = request.getNode();
     Config? config = request.getConfig();
+
+    if(!params.contains(config?.name)) {
+      return UpdateResponse.suc();
+    }
+
     String value = request.configValue;
     int intVal = int.parse(value);
     Node pub = request.cluster.pub;
     int pubVal = int.parse(pub.getConfig(config!.name)!.value);
 
-    if(!params.contains(config?.name)) {
-      return UpdateResponse.suc();
-    }
     if(node.isPub){
       Iterable<Node> inValidIds = request.cluster.subs
           .where((element) => int.parse(element.getConfig(config!.name)!.value) < intVal);
